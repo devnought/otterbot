@@ -1,6 +1,6 @@
 {
-    "host": "http://devnought.net:8000",
-    "port": 8000,
+    "host": "http://devnought.net:8001",
+    "port": 8001,
     "commands": {
         "bored": "https://media.giphy.com/media/xUA7b30EbtkaMHvRgk/giphy.gif",
         "bye": "https://media.giphy.com/media/3o7btQLlf1cFTu65k4/giphy.gif",
