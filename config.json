@@ -1,32 +1,3 @@
 {
-    "port": 8001,
-    "commands": {
-        "bored": "https://media.giphy.com/media/xUA7b30EbtkaMHvRgk/giphy.gif",
-        "bye": "https://media.giphy.com/media/3o7btQLlf1cFTu65k4/giphy.gif",
-        "cheers": "https://media.giphy.com/media/xUA7bceFLbFZb02UZa/giphy.gif",
-        "dance": "https://media.giphy.com/media/3o6Zti9NTwp5OEJHEc/giphy.gif",
-        "fuckyeah": "https://media.giphy.com/media/3o6Zt3YmoI5e6l59Pq/giphy.gif",
-        "heh": "https://media.giphy.com/media/xUA7aX4ycxbuUJMTAs/giphy.gif",
-        "laugh": "https://media.giphy.com/media/3og0IxpUK3ZOsBaehG/giphy.gif",
-        "laughing": "https://media.giphy.com/media/l0IykX6IQCtUNm9Ko/giphy.gif",
-        "lol": "https://media.giphy.com/media/3og0IRHmCwVa6UXyU0/giphy.gif",
-        "micdrop": "https://media.giphy.com/media/3og0IM5Q2eQtUzGgzC/giphy.gif",
-        "nervous": "https://media.giphy.com/media/3o6Ztf2G1n4a5QQlWw/giphy.gif",
-        "nice": "https://media.giphy.com/media/26gJA2YrG9FS5PyrS/giphy.gif",
-        "no": "https://media.giphy.com/media/xUA7bfEyEsq0AhS40g/giphy.gif",
-        "noo": "https://media.giphy.com/media/l0HlDHQEiIdY3kxlm/giphy.gif",
-        "notlikethis": "https://media.giphy.com/media/l0HlGd1H6XkdlfjZS/giphy.gif",
-        "sad": "https://media.giphy.com/media/l0HlyXP3OkdhvO61G/giphy.gif",
-        "sassy": "https://media.giphy.com/media/l0HlCDFdElciAwpJS/giphy.gif",
-        "seeyalater": "https://media.giphy.com/media/3o6Zt2j5oWWZAtf0Vq/giphy.gif",
-        "shocked": "https://media.giphy.com/media/3o6ZsZB89MSzlDo5pe/giphy.gif",
-        "shrug": "https://media.giphy.com/media/3o6Zt7LhVoifX4ZpVm/giphy.gif",
-        "sleepy": "https://media.giphy.com/media/3o6ZsUxdqmMtsw6NYA/giphy.gif",
-        "snicker": "https://media.giphy.com/media/xUA7bjvlpRuFyrMACc/giphy.gif",
-        "spin": "https://media.giphy.com/media/l0HlDZidTigOlXSJa/giphy.gif",
-        "superhero": "https://media.giphy.com/media/l0HlTPnnfzRsf4f2U/giphy.gif",
-        "why": "https://media.giphy.com/media/3o6Ztpej1dvqSwvdLy/giphy.gif",
-        "yeah": "https://media.giphy.com/media/3o6ZsXHLRnkgPtEYVi/giphy.gif",
-        "zen": "https://media.giphy.com/media/3o6ZsYMuMkxBNiy7pC/giphy.gif"
-    }
+    "port": 8001
 }
