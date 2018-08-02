@@ -2,9 +2,8 @@ use message::Message;
 use serde_json;
 use std::{collections::BTreeMap, fs::File, io, path::Path};
 
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct Config {
-    host: String,
     port: u32,
     commands: BTreeMap<String, String>,
 }
@@ -16,10 +15,6 @@ impl Config {
     {
         let file = File::open(path)?;
         Ok(serde_json::from_reader(file)?)
-    }
-
-    pub fn host(&self) -> &str {
-        &self.host
     }
 
     pub fn port(&self) -> u32 {
@@ -108,7 +103,8 @@ mod tests {
     #[test]
     fn parse_cmd_complicated() {
         let config = build_config();
-        let res = config.parse_command_message("I think we should go to the /otterbot dance party!");
+        let res =
+            config.parse_command_message("I think we should go to the /otterbot dance party!");
 
         assert_eq!(None, res);
     }
