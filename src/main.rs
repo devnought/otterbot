@@ -1,14 +1,21 @@
+// TODO: Maybe go back to single hook?
+
 extern crate hipchat;
 extern crate otterbot;
 #[macro_use]
 extern crate warp;
 
-use hipchat::request::HipchatRequest;
-use std::net::SocketAddr;
+use std::{
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+};
 use warp::Filter;
 
 fn main() {
     let config = otterbot::Config::load("config.json").expect("Could not load config");
+
+    let data = Arc::new(RwLock::new(otterbot::DataStore::new()));
+    let data_ref = warp::any().map(move || data.clone());
 
     let addr = format!("0.0.0.0:{}", config.port())
         .parse::<SocketAddr>()
@@ -22,18 +29,14 @@ fn main() {
     let fact = path!("otterbot" / "fact")
         .and(warp::path::index())
         .and(warp::body::json())
-        .map(|req: HipchatRequest| {
-            println!("{:#?}", req);
-            warp::reply::json(&otterbot::fact(req))
-        });
+        .and(data_ref.clone())
+        .map(|req, datastore| warp::reply::json(&otterbot::fact(req, datastore)));
 
     let fact_add = path!("otterbot" / "fact" / "add")
         .and(warp::path::index())
         .and(warp::body::json())
-        .map(|req: HipchatRequest| {
-            println!("{:#?}", req);
-            warp::reply::json(&otterbot::fact_add(req))
-        });
+        .and(data_ref.clone())
+        .map(|req, datastore| warp::reply::json(&otterbot::fact_add(req, datastore)));
 
     let routes = warp::get(descriptor)
         .or(warp::post(fact))

@@ -1,12 +1,15 @@
 extern crate hipchat;
+extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 
 mod config;
-pub use config::Config;
+mod data;
 
+pub use config::Config;
+pub use data::DataStore;
 use hipchat::{
     capabilities::{
         Avatar, Capabilities, CapabilitiesDescriptor, CapabilitiesEvent, HipchatApiConsumer, Links,
@@ -15,6 +18,8 @@ use hipchat::{
     notification::{Color, MessageFormat, Notification},
     request::HipchatRequest,
 };
+use rand::{thread_rng, Rng};
+use std::sync::{Arc, RwLock};
 
 pub fn build_descriptor<'a>(host: &str) -> CapabilitiesDescriptor<'a> {
     let endpoint_url = format!("http://{}/otterbot", host);
@@ -27,12 +32,12 @@ pub fn build_descriptor<'a>(host: &str) -> CapabilitiesDescriptor<'a> {
         WebHook::new(
             "OB Fact",
             format!("{}/fact", endpoint_url),
-            CapabilitiesEvent::RoomMessage("^/otterbot fact$"),
+            CapabilitiesEvent::RoomMessage(r"^/otterbot fact\s*$"),
         ),
         WebHook::new(
             "OB Fact Add",
             format!("{}/fact/add", endpoint_url),
-            CapabilitiesEvent::RoomMessage("^/otterbot fact add .+"),
+            CapabilitiesEvent::RoomMessage(r"^/otterbot fact add.*"),
         ),
     ];
 
@@ -48,10 +53,59 @@ pub fn build_descriptor<'a>(host: &str) -> CapabilitiesDescriptor<'a> {
     )
 }
 
-pub fn fact(request: HipchatRequest) -> Notification {
-    Notification::basic("These are true facts about otters", Color::Gray, MessageFormat::Text)
+pub fn fact(_request: HipchatRequest, datastore: Arc<RwLock<DataStore>>) -> Notification {
+    let db = datastore.read().expect("Could not acquire read lock");
+
+    if db.is_empty() {
+        return Notification::basic("No fact for you", Color::Red, MessageFormat::Text);
+    }
+
+    let fact = {
+        let index = {
+            let mut rng = thread_rng();
+            rng.gen_range(0, db.len())
+        };
+
+        db.get(index)
+    };
+
+    Notification::basic(fact, Color::Gray, MessageFormat::Text)
 }
 
-pub fn fact_add(request: HipchatRequest) -> Notification {
-    Notification::basic("(thumbsup)", Color::Gray, MessageFormat::Text)
+pub fn fact_add(request: HipchatRequest, datastore: Arc<RwLock<DataStore>>) -> Notification {
+    let raw_message = match request {
+        HipchatRequest::RoomMessage { ref item, .. } => String::from(item.message()),
+        _ => panic!("Unsuportted message type"),
+    };
+
+    let start_msg = "/otterbot fact add";
+
+    if !raw_message.starts_with(start_msg) {
+        return Notification::basic(
+            "I think this command is broken",
+            Color::Red,
+            MessageFormat::Text,
+        );
+    }
+
+    let (_, right) = raw_message.split_at(start_msg.len());
+    let message = right.trim();
+
+    if message.is_empty() {
+        return Notification::basic(
+            "This is not a fact (stare)",
+            Color::Red,
+            MessageFormat::Text,
+        );
+    }
+
+    {
+        let mut db = datastore.write().expect("Could not acquire write lock");
+        db.add(message.into());
+    }
+
+    // TODO: Clone the datastore at this point,
+    // then write it out to the filesystem.
+
+    Notification::basic("(thumbsup)", Color::Green, MessageFormat::Text)
 }
