@@ -1,15 +1,19 @@
 extern crate hipchat;
+#[macro_use]
+extern crate lazy_static;
 extern crate rand;
+extern crate regex;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate url;
 
-mod config;
+//mod config;
 mod data;
 
-pub use config::Config;
-pub use data::DataStore;
+//pub use config::Config;
+pub use data::{DataEntry, DataStore};
 use hipchat::{
     capabilities::{
         Avatar, Capabilities, CapabilitiesDescriptor, CapabilitiesEvent, HipchatApiConsumer, Links,
@@ -19,7 +23,11 @@ use hipchat::{
     request::HipchatRequest,
 };
 use rand::{thread_rng, Rng};
+use regex::Regex;
 use std::sync::{Arc, RwLock};
+use url::Url;
+
+const CMD: &str = "/ob";
 
 pub fn build_descriptor<'a>(host: &str) -> CapabilitiesDescriptor<'a> {
     let endpoint_url = format!("http://{}/otterbot", host);
@@ -28,18 +36,11 @@ pub fn build_descriptor<'a>(host: &str) -> CapabilitiesDescriptor<'a> {
     let scopes = vec![Scope::SendNotification];
     let api_consumer = HipchatApiConsumer::with_avatar(avatar, "Otter Bot", scopes);
 
-    let webhooks = vec![
-        WebHook::new(
-            "OB Fact",
-            format!("{}/fact", endpoint_url),
-            CapabilitiesEvent::RoomMessage(r"^/otterbot fact\s*$"),
-        ),
-        WebHook::new(
-            "OB Fact Add",
-            format!("{}/fact/add", endpoint_url),
-            CapabilitiesEvent::RoomMessage(r"^/otterbot fact add.*"),
-        ),
-    ];
+    let webhooks = vec![WebHook::new(
+        "OB",
+        endpoint_url.clone(),
+        CapabilitiesEvent::RoomMessage(format!(r"^{}.*", CMD)),
+    )];
 
     let capabilities = Capabilities::new(api_consumer, webhooks);
     let links = Links::new(endpoint_url);
@@ -53,7 +54,42 @@ pub fn build_descriptor<'a>(host: &str) -> CapabilitiesDescriptor<'a> {
     )
 }
 
-pub fn fact(_request: HipchatRequest, datastore: Arc<RwLock<DataStore>>) -> Notification {
+pub fn dispatcher(request: HipchatRequest, datastore: Arc<RwLock<DataStore>>) -> Notification {
+    // TODO: Look into RegexSet
+    lazy_static! {
+        static ref FACT_PUSH: Regex =
+            Regex::new(&format!("^{}\\s+fact\\s+push\\s+(.+)$", CMD)).unwrap();
+        static ref FACT_POP: Regex = Regex::new(&format!("^{}\\s+fact\\s+pop\\s*$", CMD)).unwrap();
+        static ref FACT: Regex = Regex::new(&format!("^{}\\s+fact\\s*$", CMD)).unwrap();
+    }
+
+    let raw_message = match request {
+        HipchatRequest::RoomMessage { ref item, .. } => String::from(item.message()),
+        _ => panic!("Unsuportted message type"),
+    };
+
+    if !raw_message.starts_with(CMD) {
+        return Notification::basic(
+            "I think this command is broken",
+            Color::Red,
+            MessageFormat::Text,
+        );
+    }
+
+    if FACT.is_match(&raw_message) {
+        fact(datastore)
+    } else if FACT_PUSH.is_match(&raw_message) {
+        let capture = FACT_PUSH.captures(&raw_message).unwrap();
+        let message = capture.get(1).map_or("", |m| m.as_str().trim());
+        fact_push(message, datastore)
+    } else if FACT_POP.is_match(&raw_message) {
+        fact_pop(datastore)
+    } else {
+        Notification::basic("(sadotter)", Color::Red, MessageFormat::Text)
+    }
+}
+
+pub fn fact(datastore: Arc<RwLock<DataStore>>) -> Notification {
     let db = datastore.read().expect("Could not acquire read lock");
 
     if db.is_empty() {
@@ -69,28 +105,17 @@ pub fn fact(_request: HipchatRequest, datastore: Arc<RwLock<DataStore>>) -> Noti
         db.get(index)
     };
 
-    Notification::basic(fact, Color::Gray, MessageFormat::Text)
+    match fact {
+        DataEntry::Image(url) => Notification::basic(
+            format!("<img width=\"300px\" src=\"{}\" />", url),
+            Color::Gray,
+            MessageFormat::Html,
+        ),
+        DataEntry::Text(msg) => Notification::basic(msg, Color::Gray, MessageFormat::Text),
+    }
 }
 
-pub fn fact_add(request: HipchatRequest, datastore: Arc<RwLock<DataStore>>) -> Notification {
-    let raw_message = match request {
-        HipchatRequest::RoomMessage { ref item, .. } => String::from(item.message()),
-        _ => panic!("Unsuportted message type"),
-    };
-
-    let start_msg = "/otterbot fact add";
-
-    if !raw_message.starts_with(start_msg) {
-        return Notification::basic(
-            "I think this command is broken",
-            Color::Red,
-            MessageFormat::Text,
-        );
-    }
-
-    let (_, right) = raw_message.split_at(start_msg.len());
-    let message = right.trim();
-
+pub fn fact_push(message: &str, datastore: Arc<RwLock<DataStore>>) -> Notification {
     if message.is_empty() {
         return Notification::basic(
             "This is not a fact (stare)",
@@ -99,13 +124,41 @@ pub fn fact_add(request: HipchatRequest, datastore: Arc<RwLock<DataStore>>) -> N
         );
     }
 
+    let entry = match Url::parse(message) {
+        Ok(url) => DataEntry::Image(url.as_str().into()),
+        Err(_) => DataEntry::Text(message.into()),
+    };
+
     {
         let mut db = datastore.write().expect("Could not acquire write lock");
-        db.add(message.into());
+        db.push(entry);
     }
 
     // TODO: Clone the datastore at this point,
     // then write it out to the filesystem.
 
-    Notification::basic("(thumbsup)", Color::Green, MessageFormat::Text)
+    Notification::basic("Pushed! (happyotter)", Color::Green, MessageFormat::Text)
+}
+
+pub fn fact_pop(datastore: Arc<RwLock<DataStore>>) -> Notification {
+    let popped = {
+        let mut db = datastore.write().expect("Could not acquire write lock");
+        db.pop()
+    };
+
+    if let Some(msg) = popped {
+        Notification::basic(
+            format!(
+                "Popped {} (happyotter)",
+                match msg {
+                    DataEntry::Image(url) => format!("image {}", url),
+                    DataEntry::Text(msg) => format!("message {}", msg),
+                }
+            ),
+            Color::Green,
+            MessageFormat::Text,
+        )
+    } else {
+        Notification::basic("Nothing to pop (stare)", Color::Red, MessageFormat::Text)
+    }
 }
