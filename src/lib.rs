@@ -24,7 +24,12 @@ use hipchat::{
 };
 use rand::{thread_rng, Rng};
 use regex::Regex;
-use std::sync::{Arc, RwLock};
+use std::{
+    fs::File,
+    io::{BufReader, BufWriter},
+    path::Path,
+    sync::{Arc, RwLock},
+};
 use url::Url;
 
 const CMD: &str = "/ob";
@@ -132,10 +137,8 @@ pub fn fact_push(message: &str, datastore: Arc<RwLock<DataStore>>) -> Notificati
     {
         let mut db = datastore.write().expect("Could not acquire write lock");
         db.push(entry);
+        write_db(&*db);
     }
-
-    // TODO: Clone the datastore at this point,
-    // then write it out to the filesystem.
 
     Notification::basic("Pushed! (happyotter)", Color::Green, MessageFormat::Text)
 }
@@ -143,7 +146,11 @@ pub fn fact_push(message: &str, datastore: Arc<RwLock<DataStore>>) -> Notificati
 pub fn fact_pop(datastore: Arc<RwLock<DataStore>>) -> Notification {
     let popped = {
         let mut db = datastore.write().expect("Could not acquire write lock");
-        db.pop()
+        let item = db.pop();
+
+        write_db(&*db);
+
+        item
     };
 
     if let Some(msg) = popped {
@@ -161,4 +168,28 @@ pub fn fact_pop(datastore: Arc<RwLock<DataStore>>) -> Notification {
     } else {
         Notification::basic("Nothing to pop (stare)", Color::Red, MessageFormat::Text)
     }
+}
+
+pub fn open_db<P>(path: P) -> Arc<RwLock<DataStore>>
+where
+    P: AsRef<Path>,
+{
+    let path = path.as_ref();
+
+    let datastore = if !path.exists() {
+        DataStore::new(path)
+    } else {
+        let file = File::open(path).expect("Could not open datastore file");
+        let reader = BufReader::new(file);
+        serde_json::from_reader(reader).expect("Could not deserialize datastore file")
+    };
+
+    Arc::new(RwLock::new(datastore))
+}
+
+fn write_db(datastore: &DataStore) {
+    let file = File::create(datastore.path()).expect("Could not open datastore file");
+    let writer = BufWriter::new(file);
+
+    serde_json::to_writer_pretty(writer, datastore).expect("Could not write out datastore");
 }

@@ -1,14 +1,20 @@
-//use serde_json;
-//use std::{fs::File, io, path::Path};
+use std::path::{Path, PathBuf};
 
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct DataStore {
-    facts: Vec<DataEntry>, // TODO: Change this to a set
+    facts: Vec<DataEntry>,
+    path: PathBuf,
 }
 
 impl DataStore {
-    pub fn new() -> Self {
-        Self { facts: Vec::new() }
+    pub fn new<P>(path: P) -> Self
+    where
+        P: Into<PathBuf>,
+    {
+        Self {
+            facts: Vec::new(),
+            path: path.into(),
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -30,9 +36,13 @@ impl DataStore {
     pub fn get(&self, index: usize) -> &DataEntry {
         &self.facts[index]
     }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
 }
 
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum DataEntry {
     Text(String),
     Image(String),

@@ -2,16 +2,11 @@ extern crate hipchat;
 extern crate otterbot;
 extern crate warp;
 
-use std::{
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-};
+use std::net::SocketAddr;
 use warp::Filter;
 
 fn main() {
-    //let config = otterbot::Config::load("config.json").expect("Could not load config");
-
-    let data = Arc::new(RwLock::new(otterbot::DataStore::new()));
+    let data = otterbot::open_db("data.json");
     let data_ref = warp::any().map(move || data.clone());
 
     let addr = format!("0.0.0.0:{}", 8001)

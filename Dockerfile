@@ -17,7 +17,7 @@ RUN cd /build \
 
 # Setup service container
 FROM scratch
-COPY --from=build /build/target/x86_64-unknown-linux-musl/release/otterbot /build/config.json /
+COPY --from=build /build/target/x86_64-unknown-linux-musl/release/otterbot /
 EXPOSE 8001
 WORKDIR /
 CMD [ "./otterbot" ]
