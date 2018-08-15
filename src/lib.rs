@@ -9,10 +9,8 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate url;
 
-//mod config;
 mod data;
 
-//pub use config::Config;
 pub use data::{DataEntry, DataStore};
 use hipchat::{
     capabilities::{

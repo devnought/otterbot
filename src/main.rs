@@ -13,18 +13,20 @@ fn main() {
         .parse::<SocketAddr>()
         .expect("Could not parse address");
 
-    let descriptor = warp::path("otterbot")
+    let descriptor = warp::get2()
+        .and(warp::path("otterbot"))
         .and(warp::path::index())
         .and(warp::header::<String>("host"))
         .map(|host: String| warp::reply::json(&otterbot::build_descriptor(&host)));
 
-    let dispatcher = warp::path("otterbot")
+    let dispatcher = warp::post2()
+        .and(warp::path("otterbot"))
         .and(warp::path::index())
         .and(warp::body::json())
         .and(data_ref.clone())
         .map(|req, datastore| warp::reply::json(&otterbot::dispatcher(req, datastore)));
 
-    let routes = warp::get(descriptor).or(warp::post(dispatcher));
+    let routes = descriptor.or(dispatcher);
 
     println!("Starting server on {}", &addr);
     warp::serve(routes).run(addr);
